@@ -22,7 +22,7 @@ module.exports = {
 
   // 数据库配置（支持 SQLite / PostgreSQL 双模式）
   database: {
-    type: process.env.DB_TYPE || 'sqlite', // 'sqlite' | 'postgresql'
+    type: process.env.DB_TYPE || 'postgresql', // 'sqlite' | 'postgresql'
     host: process.env.DB_HOST || '127.0.0.1',
     port: parseInt(process.env.DB_PORT, 10) || 5432,
     name: process.env.DB_NAME || 'docgen',

@@ -49,14 +49,24 @@ function verifyPassword(password, passwordHash) {
  * 初始化默认管理员账户
  */
 function initDefaultAdmin() {
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
-  if (!existing) {
-    hashPassword('admin123').then((hash) => {
-      db.prepare(
-        'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)'
-      ).run('admin', hash, 'admin');
-      logger.info('默认管理员账户已创建', { username: 'admin' });
-    });
+  // 检查 db 对象是否已经初始化
+  if (!db || typeof db.prepare !== 'function') {
+    console.warn('[Auth] 数据库尚未初始化，跳过默认管理员账户创建');
+    return;
+  }
+  
+  try {
+    const existing = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
+    if (!existing) {
+      hashPassword('admin123').then((hash) => {
+        db.prepare(
+          'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)'
+        ).run('admin', hash, 'admin');
+        logger.info('默认管理员账户已创建', { username: 'admin' });
+      });
+    }
+  } catch (error) {
+    console.warn('[Auth] 创建默认管理员账户失败:', error.message);
   }
 }
 

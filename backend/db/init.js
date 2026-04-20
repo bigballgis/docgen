@@ -1,4 +1,10 @@
-const Database = require('better-sqlite3');
+let Database;
+try {
+  Database = require('better-sqlite3');
+} catch (e) {
+  console.warn('[DB] better-sqlite3 未安装，将使用 PostgreSQL 模式');
+  Database = null;
+}
 const path = require('path');
 const fs = require('fs');
 const config = require('../config');
@@ -355,6 +361,10 @@ const PG_CREATE_TEMPLATE_APPROVALS = `
 
 // ========== SQLite 初始化 ==========
 function initSqlite() {
+  if (!Database) {
+    throw new Error('better-sqlite3 未安装，无法初始化 SQLite 数据库');
+  }
+  
   // 确保数据目录存在
   const dbDir = path.dirname(config.dbPath);
   if (!fs.existsSync(dbDir)) {
@@ -595,37 +605,61 @@ async function initializeDatabase() {
           console.log('\x1b[32m[DB] PostgreSQL 连接成功，使用 PostgreSQL 模式\x1b[0m');
         } catch (err) {
           console.error('\x1b[33m[DB] PostgreSQL 初始化失败:', err.message, '\x1b[0m');
-          console.log('\x1b[33m[DB] 降级到 SQLite 模式\x1b[0m');
+          if (Database) {
+            console.log('\x1b[33m[DB] 降级到 SQLite 模式\x1b[0m');
+            db = initSqlite();
+            activeDbType = 'sqlite';
+            console.log('[DB] 使用 SQLite 模式');
+            console.log(`[DB]   数据库路径: ${config.dbPath}`);
+          } else {
+            console.error('\x1b[31m[DB] 无法初始化数据库: better-sqlite3 未安装且 PostgreSQL 连接失败\x1b[0m');
+            process.exit(1);
+          }
+        }
+      } else {
+        if (Database) {
+          console.warn('\x1b[33m[DB] PostgreSQL 连接失败，降级到 SQLite 模式\x1b[0m');
           db = initSqlite();
           activeDbType = 'sqlite';
           console.log('[DB] 使用 SQLite 模式');
           console.log(`[DB]   数据库路径: ${config.dbPath}`);
+        } else {
+          console.error('\x1b[31m[DB] 无法初始化数据库: better-sqlite3 未安装且 PostgreSQL 连接失败\x1b[0m');
+          process.exit(1);
         }
-      } else {
-        console.warn('\x1b[33m[DB] PostgreSQL 连接失败，降级到 SQLite 模式\x1b[0m');
+      }
+    } else {
+      // 无 deasync，使用异步初始化（需要上层配合）
+      if (Database) {
+        console.warn('\x1b[33m[DB] 未安装 deasync，PostgreSQL 同步模式不可用\x1b[0m');
+        console.warn('\x1b[33m[DB] 降级到 SQLite 模式（安装 deasync 可启用 PostgreSQL: npm install deasync）\x1b[0m');
         db = initSqlite();
         activeDbType = 'sqlite';
         console.log('[DB] 使用 SQLite 模式');
         console.log(`[DB]   数据库路径: ${config.dbPath}`);
+
+        // 设置异步初始化标记，供 server.js 使用
+        db._needsAsyncInit = true;
+      } else {
+        console.warn('\x1b[33m[DB] 未安装 deasync 和 better-sqlite3，将尝试异步连接 PostgreSQL\x1b[0m');
+        // 设置异步初始化标记，供 server.js 使用
+        db = {
+          _needsAsyncInit: true
+        };
+        activeDbType = 'postgresql';
       }
-    } else {
-      // 无 deasync，使用异步初始化（需要上层配合）
-      console.warn('\x1b[33m[DB] 未安装 deasync，PostgreSQL 同步模式不可用\x1b[0m');
-      console.warn('\x1b[33m[DB] 降级到 SQLite 模式（安装 deasync 可启用 PostgreSQL: npm install deasync）\x1b[0m');
+    }
+  } else {
+    // 明确指定 SQLite
+    if (Database) {
       db = initSqlite();
       activeDbType = 'sqlite';
       console.log('[DB] 使用 SQLite 模式');
       console.log(`[DB]   数据库路径: ${config.dbPath}`);
-
-      // 设置异步初始化标记，供 server.js 使用
-      db._needsAsyncInit = true;
+    } else {
+      console.error('\x1b[31m[DB] 无法初始化 SQLite 数据库: better-sqlite3 未安装\x1b[0m');
+      process.exit(1);
     }
-  } else {
-    // 明确指定 SQLite
-    db = initSqlite();
-    activeDbType = 'sqlite';
-    console.log('[DB] 使用 SQLite 模式');
-    console.log(`[DB]   数据库路径: ${config.dbPath}`);
   }
 })();
 
