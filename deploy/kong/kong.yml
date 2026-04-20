@@ -1,0 +1,201 @@
+# ============================================================
+# Kong 声明式配置 (decK format)
+# DocGen Platform API 网关路由与服务定义
+# ============================================================
+
+_format_version: "3.0"
+
+# ----------------------------------------------------------
+# 服务定义
+# ----------------------------------------------------------
+services:
+  # 后端 API 服务
+  - name: docgen-backend
+    url: http://backend:3001
+    tags:
+      - docgen
+      - api
+    retries: 3
+    read_timeout: 300000
+    write_timeout: 300000
+    connect_timeout: 60000
+    routes:
+      - name: docgen-api-route
+        strip_path: false
+        paths:
+          - /api
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - OPTIONS
+        tags:
+          - docgen
+          - api
+
+      # 健康检查路由（不走认证）
+      - name: docgen-health-route
+        strip_path: false
+        paths:
+          - /api/health
+        methods:
+          - GET
+        tags:
+          - docgen
+          - health
+
+  # Euro-Office 文档编辑器服务
+  - name: euro-office-editor
+    url: http://euro-office:8080
+    tags:
+      - docgen
+      - editor
+    retries: 3
+    read_timeout: 3600000
+    write_timeout: 3600000
+    connect_timeout: 60000
+    routes:
+      - name: euro-office-route
+        strip_path: true
+        paths:
+          - /editor
+        tags:
+          - docgen
+          - editor
+
+# ----------------------------------------------------------
+# 插件配置
+# ----------------------------------------------------------
+plugins:
+  # 全局 CORS 配置
+  - name: cors
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Authorization
+        - Content-Type
+        - X-Requested-With
+        - X-Request-ID
+        - X-Trace-ID
+      exposed_headers:
+        - X-Total-Count
+        - X-Page
+        - X-Per-Page
+        - X-Request-ID
+      credentials: true
+      max_age: 3600
+    tags:
+      - docgen
+      - cors
+
+  # API 限流（仅对 API 路由生效）
+  - name: rate-limiting
+    route: docgen-api-route
+    config:
+      minute: 100
+      hour: 1000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+      retry_after_jitter: true
+    tags:
+      - docgen
+      - rate-limit
+
+  # JWT 认证（仅对 API 路由生效，排除健康检查）
+  - name: jwt
+    route: docgen-api-route
+    config:
+      claims_to_verify:
+        - exp
+      secret_is_base64: false
+      key_claim_name: kid
+      maximum_expiration: 86400
+    tags:
+      - docgen
+      - auth
+
+  # 请求 ID 追踪（全局）
+  - name: request-id
+    config:
+      header_name: X-Request-ID
+      generator: uuid
+      include_in_headers: true
+    tags:
+      - docgen
+      - tracing
+
+  # 请求大小限制
+  - name: request-size-limiting
+    route: docgen-api-route
+    config:
+      allowed_payload_size: 104857600  # 100MB（支持大文档上传）
+    tags:
+      - docgen
+      - security
+
+# ----------------------------------------------------------
+# Upstream 目标（用于负载均衡扩展）
+# ----------------------------------------------------------
+upstreams:
+  - name: docgen-backend-upstream
+    tags:
+      - docgen
+    targets:
+      - target: backend:3001
+        weight: 100
+
+  - name: euro-office-upstream
+    tags:
+      - docgen
+    targets:
+      - target: euro-office:8080
+        weight: 100
+
+# ----------------------------------------------------------
+# 消费者（Consumer）- 用于 API 密钥认证
+# ----------------------------------------------------------
+consumers:
+  - username: docgen-admin
+    tags:
+      - docgen
+      - admin
+    jwt_secrets:
+      - key: docgen-admin-key
+        algorithm: HS256
+        secret: ${JWT_SECRET}
+    acl:
+      - group: admin
+
+  - username: docgen-user
+    tags:
+      - docgen
+      - user
+    jwt_secrets:
+      - key: docgen-user-key
+        algorithm: HS256
+        secret: ${JWT_SECRET}
+    acl:
+      - group: user
+
+# ----------------------------------------------------------
+# ACL 组
+# ----------------------------------------------------------
+acls:
+  - group: admin
+    tags:
+      - docgen
+  - group: user
+    tags:
+      - docgen
