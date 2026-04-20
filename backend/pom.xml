@@ -62,11 +62,11 @@
             <version>1.6.9</version>
         </dependency>
 
-        <!-- Spire.Doc Free: Word 转 PDF -->
+        <!-- Apache PDFBox: Word 转 PDF 的替代方案 -->
         <dependency>
-            <groupId>e-iceblue</groupId>
-            <artifactId>spire.doc.free</artifactId>
-            <version>5.2.0</version>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.31</version>
         </dependency>
 
         <!-- Lombok -->
@@ -110,11 +110,14 @@
     </build>
 
     <repositories>
-        <!-- Spire.Doc Free 需要从 e-iceblue 仓库下载 -->
+        <!-- Maven 中央仓库 -->
         <repository>
-            <id>e-iceblue</id>
-            <name>e-iceblue Repository</name>
-            <url>https://repo.e-iceblue.com/nexus/content/groups/public/</url>
+            <id>central</id>
+            <name>Maven Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </repository>
     </repositories>
 
