@@ -12,12 +12,12 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    const token = sessionStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
     // 自动附加 X-Tenant-Id header
-    const tenantId = localStorage.getItem('tenantId')
+    const tenantId = sessionStorage.getItem('tenantId')
     if (tenantId) {
       config.headers['X-Tenant-Id'] = tenantId
     }
@@ -59,8 +59,10 @@ request.interceptors.response.use(
 
       // 401 状态码自动跳转登录页
       if (response.status === 401) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
+        sessionStorage.removeItem('token')
+        sessionStorage.removeItem('user')
+        sessionStorage.removeItem('tenantId')
+        sessionStorage.removeItem('tenantName')
         // 避免在登录页重复跳转
         if (window.location.hash !== '#/login') {
           window.location.hash = '#/login'

@@ -4,6 +4,9 @@ const authService = require('../services/authService');
 const auditService = require('../services/auditService');
 const logger = require('../utils/logger');
 
+// Token 黑名单（存储已注销的 token）
+const tokenBlacklist = new Set();
+
 /**
  * JWT 认证中间件
  * 支持可选模式：如果请求未携带 token，不会拦截，而是将 req.user 设为 null
@@ -18,11 +21,20 @@ function requireAuth(req, res, next) {
     return res.status(401).json({ code: 401, message: '未提供认证令牌' });
   }
 
+  // 检查 token 是否在黑名单中
+  if (tokenBlacklist.has(token)) {
+    return res.status(401).json({ code: 401, message: '令牌已被注销' });
+  }
+
   try {
     const decoded = jwt.verify(token, config.jwtSecret);
     const user = authService.getUserById(decoded.userId);
     if (!user) {
       return res.status(401).json({ code: 401, message: '用户不存在' });
+    }
+    // 检查用户状态
+    if (user.status && user.status === 'disabled') {
+      return res.status(403).json({ code: 403, message: '用户已被禁用' });
     }
     req.user = user;
     next();
@@ -44,10 +56,21 @@ function optionalAuth(req, res, next) {
     return next();
   }
 
+  // 检查 token 是否在黑名单中
+  if (tokenBlacklist.has(token)) {
+    req.user = null;
+    return next();
+  }
+
   try {
     const decoded = jwt.verify(token, config.jwtSecret);
     const user = authService.getUserById(decoded.userId);
-    req.user = user || null;
+    // 检查用户状态
+    if (user && user.status && user.status === 'disabled') {
+      req.user = null;
+    } else {
+      req.user = user || null;
+    }
   } catch (err) {
     // token 无效时静默忽略，视为未登录
     req.user = null;
@@ -148,8 +171,53 @@ function generateToken(user) {
     role: user.role,
     tenantId: user.tenant_id || 'default',
   };
-  return jwt.sign(payload, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
+  return jwt.sign(payload, config.jwtSecret, { 
+    expiresIn: config.jwtExpiresIn,
+    algorithm: 'HS256'
+  });
 }
+
+/**
+ * 注销 token（添加到黑名单）
+ * @param {string} token - JWT token
+ */
+function revokeToken(token) {
+  if (token) {
+    tokenBlacklist.add(token);
+    // 清理过期的 token（可选，定期执行）
+    cleanupBlacklist();
+  }
+}
+
+/**
+ * 清理黑名单中过期的 token
+ */
+function cleanupBlacklist() {
+  const now = Date.now();
+  const tokensToRemove = [];
+  
+  for (const token of tokenBlacklist) {
+    try {
+      const decoded = jwt.decode(token);
+      if (decoded && decoded.exp) {
+        const exp = decoded.exp * 1000;
+        if (exp < now) {
+          tokensToRemove.push(token);
+        }
+      }
+    } catch (err) {
+      // 无效 token，直接移除
+      tokensToRemove.push(token);
+    }
+  }
+  
+  for (const token of tokensToRemove) {
+    tokenBlacklist.delete(token);
+  }
+}
+
+// 定期清理黑名单（每小时）
+setInterval(cleanupBlacklist, 60 * 60 * 1000);
 
 module.exports = {
   requireAuth,
@@ -157,4 +225,5 @@ module.exports = {
   requireRole,
   auditLog,
   generateToken,
+  revokeToken,
 };

@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const db = require('../db/init');
+const { get, run, query } = require('../db/db');
 const logger = require('../utils/logger');
 
 /**
@@ -49,12 +49,10 @@ function verifyPassword(password, passwordHash) {
  * 初始化默认管理员账户
  */
 function initDefaultAdmin() {
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
+  const existing = get('SELECT id FROM users WHERE username = ?', ['admin']);
   if (!existing) {
     hashPassword('admin123').then((hash) => {
-      db.prepare(
-        'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)'
-      ).run('admin', hash, 'admin');
+      run('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', ['admin', hash, 'admin']);
       logger.info('默认管理员账户已创建', { username: 'admin' });
     });
   }
@@ -79,18 +77,15 @@ async function register(username, password, role = 'user') {
   }
 
   // 检查用户名是否已存在
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  const existing = get('SELECT id FROM users WHERE username = ?', [username]);
   if (existing) {
     throw new Error('用户名已存在');
   }
 
   const passwordHash = await hashPassword(password);
-  const stmt = db.prepare(
-    'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)'
-  );
-  const result = stmt.run(username, passwordHash, role);
+  const result = run('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, passwordHash, role]);
 
-  const user = db.prepare('SELECT id, username, role, tenant_id, created_at FROM users WHERE id = ?').get(result.lastInsertRowid);
+  const user = get('SELECT id, username, role, tenant_id, created_at FROM users WHERE id = ?', [result.lastInsertRowid]);
   return user;
 }
 
@@ -105,7 +100,7 @@ async function login(username, password) {
     throw new Error('用户名和密码不能为空');
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  const user = get('SELECT * FROM users WHERE username = ?', [username]);
   if (!user) {
     throw new Error('用户名或密码错误');
   }
@@ -126,7 +121,7 @@ async function login(username, password) {
  * @returns {Object|null}
  */
 function getUserById(userId) {
-  const user = db.prepare('SELECT id, username, role, tenant_id, created_at FROM users WHERE id = ?').get(userId);
+  const user = get('SELECT id, username, role, tenant_id, created_at FROM users WHERE id = ?', [userId]);
   return user || null;
 }
 
@@ -142,13 +137,9 @@ function getUserList({ page, size }) {
   const sizeVal = parseInt(size, 10) || 20;
   const offset = pageVal * sizeVal;
 
-  const countStmt = db.prepare('SELECT COUNT(*) as total FROM users');
-  const { total } = countStmt.get();
+  const { total } = get('SELECT COUNT(*) as total FROM users');
 
-  const dataStmt = db.prepare(
-    'SELECT id, username, role, tenant_id, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?'
-  );
-  const content = dataStmt.all(sizeVal, offset);
+  const content = query('SELECT id, username, role, tenant_id, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?', [sizeVal, offset]);
 
   return {
     content,
@@ -169,13 +160,13 @@ function updateUserRole(userId, role) {
     throw new Error(`无效的角色，允许的角色: ${allowedRoles.join(', ')}`);
   }
 
-  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+  const user = get('SELECT id FROM users WHERE id = ?', [userId]);
   if (!user) {
     throw new Error('用户不存在');
   }
 
-  db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, userId);
-  return db.prepare('SELECT id, username, role, tenant_id, created_at FROM users WHERE id = ?').get(userId);
+  run('UPDATE users SET role = ? WHERE id = ?', [role, userId]);
+  return get('SELECT id, username, role, tenant_id, created_at FROM users WHERE id = ?', [userId]);
 }
 
 /**
@@ -191,20 +182,20 @@ function updateUserStatus(userId, status) {
     throw new Error(`无效的状态，允许的状态: ${allowedStatuses.join(', ')}`);
   }
 
-  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+  const user = get('SELECT id FROM users WHERE id = ?', [userId]);
   if (!user) {
     throw new Error('用户不存在');
   }
 
   // 确保 status 列存在（SQLite ALTER TABLE ADD COLUMN 是幂等的，重复执行会报错，需要 try-catch）
   try {
-    db.prepare("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'").run();
+    run("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'");
   } catch (e) {
     // 列已存在，忽略
   }
 
-  db.prepare('UPDATE users SET status = ? WHERE id = ?').run(status, userId);
-  return db.prepare('SELECT id, username, role, tenant_id, status, created_at FROM users WHERE id = ?').get(userId);
+  run('UPDATE users SET status = ? WHERE id = ?', [status, userId]);
+  return get('SELECT id, username, role, tenant_id, status, created_at FROM users WHERE id = ?', [userId]);
 }
 
 /**
@@ -215,7 +206,7 @@ function updateUserStatus(userId, status) {
  * @returns {Promise<Object>} 操作结果
  */
 async function changePassword(userId, oldPassword, newPassword) {
-  const user = db.prepare('SELECT id, password_hash FROM users WHERE id = ?').get(userId);
+  const user = get('SELECT id, password_hash FROM users WHERE id = ?', [userId]);
   if (!user) {
     throw new Error('用户不存在');
   }
@@ -233,7 +224,7 @@ async function changePassword(userId, oldPassword, newPassword) {
 
   // 更新密码
   const hashedPassword = await hashPassword(newPassword);
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashedPassword, userId);
+  run('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, userId]);
 
   logger.info('用户修改密码成功', { userId });
   return { success: true };

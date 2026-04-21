@@ -1,14 +1,14 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { login as loginApi, getProfile, getTenants } from '@/api/index'
 import router from '@/router'
 
 export const useAuthStore = defineStore('auth', () => {
   // ==================== State ====================
-  const token = ref(localStorage.getItem('token') || '')
-  const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
-  const tenantId = ref(localStorage.getItem('tenantId') || 'default')
-  const tenantName = ref(localStorage.getItem('tenantName') || '默认租户')
+  const token = ref(sessionStorage.getItem('token') || '')
+  const user = ref(JSON.parse(sessionStorage.getItem('user') || 'null'))
+  const tenantId = ref(sessionStorage.getItem('tenantId') || 'default')
+  const tenantName = ref(sessionStorage.getItem('tenantName') || '默认租户')
   const tenants = ref([]) // 用户可访问的租户列表
 
   // ==================== Getters ====================
@@ -30,7 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
       const data = await loginApi(credentials)
       const tokenValue = data?.token || data?.access_token || data
       token.value = tokenValue
-      localStorage.setItem('token', tokenValue)
+      sessionStorage.setItem('token', tokenValue)
 
       // 登录成功后获取用户信息
       await fetchProfile()
@@ -51,10 +51,12 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const data = await getProfile()
       user.value = data
-      localStorage.setItem('user', JSON.stringify(data))
+      sessionStorage.setItem('user', JSON.stringify(data))
     } catch (error) {
       // 获取用户信息失败，可能是 token 过期
       console.error('获取用户信息失败', error)
+      // 清除过期的token和用户信息
+      logout()
     }
   }
 
@@ -82,8 +84,8 @@ export const useAuthStore = defineStore('auth', () => {
   function setTenant(id, name) {
     tenantId.value = id
     tenantName.value = name
-    localStorage.setItem('tenantId', id)
-    localStorage.setItem('tenantName', name)
+    sessionStorage.setItem('tenantId', id)
+    sessionStorage.setItem('tenantName', name)
   }
 
   /**
@@ -93,8 +95,10 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = ''
     user.value = null
     tenants.value = []
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    sessionStorage.removeItem('token')
+    sessionStorage.removeItem('user')
+    sessionStorage.removeItem('tenantId')
+    sessionStorage.removeItem('tenantName')
     router.push('/login')
   }
 

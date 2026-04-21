@@ -29,6 +29,9 @@ module.exports = {
     user: process.env.DB_USER || 'docgen',
     password: process.env.DB_PASSWORD || 'docgen_secret_2026',
     maxPool: parseInt(process.env.DB_POOL_MAX, 10) || 10,
+    minPool: parseInt(process.env.DB_POOL_MIN, 10) || 2,
+    idleTimeoutMillis: parseInt(process.env.DB_POOL_IDLE_TIMEOUT, 10) || 30000,
+    connectionTimeoutMillis: parseInt(process.env.DB_POOL_CONNECTION_TIMEOUT, 10) || 2000,
   },
 
   // 模板文件上传目录

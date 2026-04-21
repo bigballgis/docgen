@@ -457,11 +457,46 @@ function initSqlite() {
 
   // 创建 tenant_id 索引
   try {
+    // 模板相关索引
     db.exec('CREATE INDEX IF NOT EXISTS idx_templates_tenant_id ON templates(tenant_id)');
-    db.exec('CREATE INDEX IF NOT EXISTS idx_documents_tenant_id ON documents(tenant_id)');
-    db.exec('CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_templates_status ON templates(status)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_templates_user_id ON templates(user_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_templates_category ON templates(category)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_templates_created_at ON templates(create_time)');
+    
+    // 文档相关索引
+    db.exec('CREATE INDEX IF NOT EXISTS idx_documents_tenant_id ON documents(tenant_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_documents_template_id ON documents(template_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at)');
+    
+    // 用户相关索引
+    db.exec('CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)');
+    
+    // 审批相关索引
     db.exec('CREATE INDEX IF NOT EXISTS idx_template_approvals_template_id ON template_approvals(template_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_template_approvals_reviewer_id ON template_approvals(reviewer_id)');
+    
+    // 版本相关索引
+    db.exec('CREATE INDEX IF NOT EXISTS idx_template_versions_template_id ON template_versions(template_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_template_versions_version ON template_versions(version)');
+    
+    // 片段相关索引
+    db.exec('CREATE INDEX IF NOT EXISTS idx_fragments_tenant_id ON fragments(tenant_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_fragments_category ON fragments(category)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_fragments_status ON fragments(status)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_fragments_created_by ON fragments(created_by)');
+    
+    // 片段版本相关索引
+    db.exec('CREATE INDEX IF NOT EXISTS idx_fragment_versions_fragment_id ON fragment_versions(fragment_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_fragment_versions_version ON fragment_versions(version)');
+    
+    // 编排相关索引
+    db.exec('CREATE INDEX IF NOT EXISTS idx_template_compositions_template_id ON template_compositions(template_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_template_compositions_fragment_id ON template_compositions(fragment_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_template_compositions_sort_order ON template_compositions(sort_order)');
   } catch (e) {
     console.warn('[DB/SQLite] 创建索引失败:', e.message);
   }
@@ -500,6 +535,52 @@ function initPostgresql(pgAdapter) {
   pgAdapter.exec(PG_CREATE_FRAGMENTS);
   pgAdapter.exec(PG_CREATE_FRAGMENT_VERSIONS);
   pgAdapter.exec(PG_CREATE_TEMPLATE_COMPOSITIONS);
+  
+  // 创建 PostgreSQL 索引
+  try {
+    // 模板相关索引
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_templates_tenant_id ON templates(tenant_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_templates_status ON templates(status)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_templates_user_id ON templates(user_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_templates_category ON templates(category)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_templates_created_at ON templates(create_time)');
+    
+    // 文档相关索引
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_documents_tenant_id ON documents(tenant_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_documents_template_id ON documents(template_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at)');
+    
+    // 用户相关索引
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)');
+    
+    // 审批相关索引
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_template_approvals_template_id ON template_approvals(template_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_template_approvals_reviewer_id ON template_approvals(reviewer_id)');
+    
+    // 版本相关索引
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_template_versions_template_id ON template_versions(template_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_template_versions_version ON template_versions(version)');
+    
+    // 片段相关索引
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_fragments_tenant_id ON fragments(tenant_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_fragments_category ON fragments(category)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_fragments_status ON fragments(status)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_fragments_created_by ON fragments(created_by)');
+    
+    // 片段版本相关索引
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_fragment_versions_fragment_id ON fragment_versions(fragment_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_fragment_versions_version ON fragment_versions(version)');
+    
+    // 编排相关索引
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_template_compositions_template_id ON template_compositions(template_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_template_compositions_fragment_id ON template_compositions(fragment_id)');
+    pgAdapter.exec('CREATE INDEX IF NOT EXISTS idx_template_compositions_sort_order ON template_compositions(sort_order)');
+  } catch (e) {
+    console.warn('[DB/PostgreSQL] 创建索引失败:', e.message);
+  }
 
   // 插入默认租户
   try {
