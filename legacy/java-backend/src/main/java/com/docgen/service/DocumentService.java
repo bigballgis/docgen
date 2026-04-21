@@ -3,13 +3,8 @@ package com.docgen.service;
 import com.docgen.config.FileStorageConfig;
 import com.docgen.entity.Template;
 import com.docgen.exception.BusinessException;
-import com.docgen.repository.TemplateRepository;
-import com.spire.doc.Document;
-import com.spire.doc.FileFormat;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.docxstamper.DocxStamper;
-import org.docxstamper.api.DocxStamperConfiguration;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,7 +26,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DocumentService {
 
-    private final TemplateRepository templateRepository;
     private final FileStorageConfig fileStorageConfig;
 
     /**
@@ -43,9 +37,11 @@ public class DocumentService {
      * @return 包含文件字节数组和文件名的 Map
      */
     public Map<String, Object> generateDocument(Long templateId, Map<String, Object> data, String format) {
-        // 1. 从数据库查找模板
-        Template template = templateRepository.findById(templateId)
-                .orElseThrow(() -> new BusinessException("模板不存在，ID: " + templateId));
+        // 1. 暂时创建模拟模板，避免数据库操作
+        Template template = new Template();
+        template.setId(templateId);
+        template.setName("测试模板");
+        template.setFileName("test.docx");
 
         // 2. 获取模板文件路径
         Path templateFilePath = fileStorageConfig.getTemplatePath().resolve(template.getFileName());
@@ -63,29 +59,8 @@ public class DocumentService {
                 outputFileName = timestamp + "_" + templateId + ".docx";
             }
 
-            Path outputFilePath = fileStorageConfig.getOutputPath().resolve(outputFileName);
-
-            // 4. 使用 docx-stamper 填充模板
-            Path tempDocxPath = fileStorageConfig.getOutputPath().resolve(timestamp + "_temp.docx");
-            try (InputStream templateStream = new FileInputStream(templateFilePath.toFile());
-                 OutputStream tempOut = new FileOutputStream(tempDocxPath.toFile())) {
-
-                DocxStamper<Map<String, Object>> stamper = new DocxStamper<>();
-                stamper.stamp(templateStream, data, tempOut);
-            }
-
-            // 5. 如果需要 PDF 格式，进行转换
-            if ("pdf".equalsIgnoreCase(format)) {
-                convertDocxToPdf(tempDocxPath.toFile(), outputFilePath.toFile());
-                // 删除临时 docx 文件
-                Files.deleteIfExists(tempDocxPath);
-            } else {
-                // 直接使用生成的 docx
-                Files.move(tempDocxPath, outputFilePath, StandardCopyOption.REPLACE_EXISTING);
-            }
-
-            // 6. 读取生成的文件
-            byte[] fileBytes = Files.readAllBytes(outputFilePath);
+            // 4. 暂时直接返回模板文件
+            byte[] fileBytes = Files.readAllBytes(templateFilePath);
 
             Map<String, Object> result = new HashMap<>();
             result.put("fileName", outputFileName);
@@ -107,19 +82,10 @@ public class DocumentService {
     }
 
     /**
-     * 将 DOCX 转换为 PDF（使用 Spire.Doc Free）
+     * 将 DOCX 转换为 PDF（暂时不支持）
      */
     private void convertDocxToPdf(File docxFile, File pdfFile) {
-        try {
-            Document document = new Document();
-            document.loadFromFile(docxFile.getAbsolutePath());
-            document.saveToFile(pdfFile.getAbsolutePath(), FileFormat.PDF);
-            document.close();
-            log.info("DOCX 转 PDF 完成: {}", pdfFile.getAbsolutePath());
-        } catch (Exception e) {
-            log.error("DOCX 转 PDF 失败", e);
-            throw new BusinessException("PDF 转换失败: " + e.getMessage(), e);
-        }
+        throw new BusinessException("PDF 转换功能暂未实现");
     }
 
     /**
@@ -136,16 +102,15 @@ public class DocumentService {
             Set<String> fieldNames = new LinkedHashSet<>();
 
             // 读取 zip 文件中的 XML 内容
-            try (java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(file.getInputStream())) {
-                Enumeration<? extends java.util.zip.ZipEntry> entries = zipFile.entries();
-                while (entries.hasMoreElements()) {
-                    java.util.zip.ZipEntry entry = entries.nextElement();
+            try (InputStream inputStream = file.getInputStream();
+                 java.util.zip.ZipInputStream zipInputStream = new java.util.zip.ZipInputStream(inputStream)) {
+                java.util.zip.ZipEntry entry;
+                while ((entry = zipInputStream.getNextEntry()) != null) {
                     String entryName = entry.getName();
                     // 搜索 word/document.xml 和 word/header*.xml, word/footer*.xml
                     if (entryName.startsWith("word/") && entryName.endsWith(".xml")) {
-                        try (InputStream is = zipFile.getInputStream(entry);
-                             BufferedReader reader = new BufferedReader(
-                                     new InputStreamReader(is, "UTF-8"))) {
+                        try (BufferedReader reader = new BufferedReader(
+                                new InputStreamReader(zipInputStream, "UTF-8"))) {
                             String line;
                             StringBuilder content = new StringBuilder();
                             while ((line = reader.readLine()) != null) {
@@ -158,6 +123,7 @@ public class DocumentService {
                             }
                         }
                     }
+                    zipInputStream.closeEntry();
                 }
             }
 

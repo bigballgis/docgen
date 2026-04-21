@@ -26,21 +26,26 @@ dependencies {
     // Spring Boot Data JPA
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     
-    // PostgreSQL
-    runtimeOnly 'org.postgresql:postgresql'
+    // Spring Boot Validation
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    
+    // H2 Database
+    runtimeOnly 'com.h2database:h2:2.2.224'
     
     // docx-stamper: Word 模板填充
     implementation 'pro.verron:docx-stamper:1.6.9'
     
-    // Apache PDFBox: Word 转 PDF
+    // Apache PDFBox: PDF处理
     implementation 'org.apache.pdfbox:pdfbox:2.0.31'
+    
+
     
     // JWT
     implementation 'io.jsonwebtoken:jjwt:0.12.5'
     
     // Lombok
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
+    compileOnly 'org.projectlombok:lombok:1.18.38'
+    annotationProcessor 'org.projectlombok:lombok:1.18.38'
     
     // Spring Boot DevTools
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
