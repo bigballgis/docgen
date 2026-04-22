@@ -491,7 +491,7 @@ html.dark {
   --bg-sidebar: #0c1222;
   --text-primary: #f1f5f9;
   --text-regular: #cbd5e1;
-  --text-secondary: #94a3b8;
+  --text-secondary: #b0b8c4;
   --text-placeholder: #64748b;
   --border-color: #334155;
   --border-light: #1e293b;
@@ -886,4 +886,56 @@ html.dark .field-type {
   font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.5;
+}
+
+/* 平板竖屏及以下 */
+@media (max-width: 1024px) {
+  .search-filter-bar,
+  .filter-bar {
+    flex-direction: column !important;
+  }
+  .search-filter-bar .el-col,
+  .filter-bar .el-col {
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
+  }
+}
+
+/* 手机 */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 12px !important;
+  }
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  .page-header .el-col {
+    max-width: 100% !important;
+    margin-bottom: 8px;
+  }
+}
+
+/* focus-visible 样式 */
+:focus-visible {
+  outline: 2px solid var(--primary, #3b82f6);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* 页面过渡动画 */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }

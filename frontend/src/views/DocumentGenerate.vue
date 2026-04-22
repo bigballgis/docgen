@@ -263,14 +263,16 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Search, Document, Download, EditPen, Tickets, CreditCard, More } from '@element-plus/icons-vue'
 import { getTemplates, getTemplate, generateDocument } from '@/api/index'
 import { downloadBlob, getContentDispositionFileName } from '@/utils/download'
+import { extractList } from '@/utils/response'
 
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 
 // ==================== 分类导航 ====================
@@ -308,7 +310,7 @@ async function loadTemplates() {
   templateLoading.value = true
   try {
     const data = await getTemplates({ page: 0, size: 100 })
-    let list = data?.content || data?.list || data?.records || []
+    let list = extractList(data)
     list = list.map(item => {
       if (item.fields && typeof item.fields === 'string') {
         try {
@@ -321,7 +323,7 @@ async function loadTemplates() {
     })
     templates.value = list
   } catch (e) {
-    console.error('加载模板列表失败', e)
+    ElMessage.error(t('common.loadFailed'))
   } finally {
     templateLoading.value = false
   }
@@ -393,7 +395,7 @@ async function selectTemplate(tpl) {
     tpl.fields = fields
     initFormData(fields)
   } catch (e) {
-    console.error('获取模板详情失败', e)
+    ElMessage.error(t('common.loadFailed'))
     ElMessage.error(t('document.selectFirst'))
   } finally {
     fieldsLoading.value = false
@@ -420,8 +422,8 @@ function initFormData(fields) {
         {
           required: true,
           message: isSelect
-            ? `请选择${field.label || field.name}`
-            : `请输入${field.label || field.name}`,
+            ? t('validation.pleaseSelect', { field: field.label || field.name })
+            : t('validation.pleaseInput', { field: field.label || field.name }),
           trigger: isSelect ? 'change' : 'blur'
         }
       ]
@@ -483,7 +485,7 @@ async function handleGenerate() {
     // 模拟一个 fileKey 用于编辑器跳转
     generatedFileKey.value = `doc_${Date.now()}`
   } catch (e) {
-    console.error('生成文档失败', e)
+    ElMessage.error(t('document.generateFailed'))
   } finally {
     generating.value = false
   }
@@ -513,6 +515,13 @@ function handleResetForm() {
 
 // ==================== 页面初始化 ====================
 onMounted(() => {
+  // 根据 URL query 参数设置分类
+  const queryType = route.query.type
+  if (queryType === 'FOL') {
+    activeCategory.value = 'trade'
+  } else if (queryType === 'LO') {
+    activeCategory.value = 'credit'
+  }
   loadTemplates()
 })
 </script>

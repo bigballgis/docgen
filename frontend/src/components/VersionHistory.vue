@@ -72,7 +72,7 @@
       append-to-body
       top="5vh"
     >
-      <div class="preview-content" v-loading="previewLoading" v-html="previewHtml"></div>
+      <div class="preview-content" v-loading="previewLoading" v-html="sanitizeHtml(previewHtml)"></div>
     </el-dialog>
 
     <!-- 版本对比对话框 -->
@@ -103,6 +103,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, View, Sort, RefreshLeft } from '@element-plus/icons-vue'
 import { getVersionList, getVersionPreview, rollbackVersion } from '@/api/index'
 import VersionCompare from './VersionCompare.vue'
+import { sanitizeHtml } from '@/utils/sanitize'
+import { formatTime } from '@/utils/format'
 
 const props = defineProps({
   modelValue: {
@@ -151,17 +153,6 @@ watch(visible, (val) => {
 })
 
 /**
- * 格式化时间
- */
-function formatTime(time) {
-  if (!time) return '-'
-  const d = new Date(time)
-  if (isNaN(d.getTime())) return time
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
-
-/**
  * 加载版本列表
  */
 async function loadVersions() {
@@ -173,7 +164,7 @@ async function loadVersions() {
     // 按版本号降序排列（最新版本在前）
     versions.value = list.sort((a, b) => (b.version || 0) - (a.version || 0))
   } catch (e) {
-    console.error('加载版本列表失败', e)
+    ElMessage.error(t('common.loadFailed'))
     versions.value = []
   } finally {
     loading.value = false
@@ -192,7 +183,7 @@ async function handlePreview(ver) {
     const data = await getVersionPreview(props.templateId, ver.version)
     previewHtml.value = data?.html || data || ''
   } catch (e) {
-    console.error('加载版本预览失败', e)
+    ElMessage.error(t('common.loadFailed'))
     previewHtml.value = ''
   } finally {
     previewLoading.value = false
@@ -247,7 +238,7 @@ async function handleRollback(ver) {
     loadVersions()
     emit('rollback-success')
   } catch (e) {
-    console.error('回滚版本失败', e)
+    ElMessage.error(t('version.rollbackFailed'))
   }
 }
 </script>

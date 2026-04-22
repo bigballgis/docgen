@@ -8,12 +8,12 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref(sessionStorage.getItem('token') || '')
   const user = ref(JSON.parse(sessionStorage.getItem('user') || 'null'))
   const tenantId = ref(sessionStorage.getItem('tenantId') || 'default')
-  const tenantName = ref(sessionStorage.getItem('tenantName') || '默认租户')
+  const tenantName = ref(sessionStorage.getItem('tenantName') || 'Default')
   const tenants = ref([]) // 用户可访问的租户列表
 
   // ==================== Getters ====================
   const isLoggedIn = computed(() => !!token.value)
-  const username = computed(() => user.value?.username || user.value?.name || '用户')
+  const username = computed(() => user.value?.username || user.value?.name || 'User')
   const isAdmin = computed(() => {
     const role = user.value?.role || user.value?.authorities?.[0] || ''
     return role === 'admin' || role === 'ADMIN' || role === 'ROLE_ADMIN'
@@ -25,12 +25,15 @@ export const useAuthStore = defineStore('auth', () => {
    * 登录
    * @param {Object} credentials - { username, password }
    */
-  async function login(credentials) {
+  async function login(credentials, rememberMe = false) {
     try {
       const data = await loginApi(credentials)
       const tokenValue = data?.token || data?.access_token || data
       token.value = tokenValue
       sessionStorage.setItem('token', tokenValue)
+      if (rememberMe) {
+        localStorage.setItem('token', tokenValue)
+      }
 
       // 登录成功后获取用户信息
       await fetchProfile()
@@ -51,11 +54,14 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const data = await getProfile()
       user.value = data
-      sessionStorage.setItem('user', JSON.stringify(data))
+      const userJson = JSON.stringify(data)
+      sessionStorage.setItem('user', userJson)
+      if (localStorage.getItem('token')) {
+        localStorage.setItem('user', userJson)
+      }
     } catch (error) {
       // 获取用户信息失败，可能是 token 过期
-      console.error('获取用户信息失败', error)
-      // 清除过期的token和用户信息
+      // 获取用户信息失败，可能是 token 过期
       logout()
     }
   }
@@ -74,7 +80,6 @@ export const useAuthStore = defineStore('auth', () => {
         setTenant(first.id || first.tenantId, first.name || first.tenantName)
       }
     } catch (error) {
-      console.warn('获取租户列表失败', error)
     }
   }
 
@@ -86,6 +91,10 @@ export const useAuthStore = defineStore('auth', () => {
     tenantName.value = name
     sessionStorage.setItem('tenantId', id)
     sessionStorage.setItem('tenantName', name)
+    if (localStorage.getItem('token')) {
+      localStorage.setItem('tenantId', id)
+      localStorage.setItem('tenantName', name)
+    }
   }
 
   /**
@@ -99,6 +108,10 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.removeItem('user')
     sessionStorage.removeItem('tenantId')
     sessionStorage.removeItem('tenantName')
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    localStorage.removeItem('tenantId')
+    localStorage.removeItem('tenantName')
     router.push('/login')
   }
 

@@ -111,7 +111,7 @@ async function handleLogin() {
     await authStore.login({
       username: loginForm.username,
       password: loginForm.password
-    })
+    }, rememberMe.value)
 
     ElMessage.success(t('login.loginSuccess'))
 
@@ -120,7 +120,7 @@ async function handleLogin() {
     router.push(redirect)
   } catch (error) {
     // 错误消息已在拦截器中处理
-    console.error(t('login.loginFailed'), error)
+    ElMessage.error(t('login.loginFailed'))
   } finally {
     loading.value = false
   }

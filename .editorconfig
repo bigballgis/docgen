@@ -1,0 +1,49 @@
+# EditorConfig - 银文通 DocGen
+# https://editorconfig.org
+
+root = true
+
+# 全局默认
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Java
+[*.java]
+indent_size = 4
+
+# XML (Maven pom.xml, Spring 配置)
+[*.{xml,xsd}]
+indent_size = 4
+
+# YAML (Spring Boot 配置)
+[*.{yml,yaml}]
+indent_size = 2
+
+# JSON
+[*.json]
+indent_size = 2
+
+# Markdown
+[*.md]
+trim_trailing_whitespace = false
+
+# Shell 脚本
+[*.sh]
+indent_size = 2
+
+# Dockerfile
+[Dockerfile]
+indent_size = 2
+
+# Makefile 必须使用 tab
+[Makefile]
+indent_style = tab
+
+# .env 文件
+[.env*]
+indent_size = 2

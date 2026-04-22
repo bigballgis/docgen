@@ -101,7 +101,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { getUserProfile, updatePassword } from '@/api/index'
+import { getProfile, updatePassword } from '@/api/index'
 import { useAuthStore } from '@/stores/auth'
 
 const { t, locale } = useI18n()
@@ -117,10 +117,10 @@ const userProfile = ref({})
 async function loadProfile() {
   profileLoading.value = true
   try {
-    const data = await getUserProfile()
+    const data = await getProfile()
     userProfile.value = data || {}
   } catch (e) {
-    console.error('获取用户信息失败', e)
+    ElMessage.error(t('common.loadFailed'))
     // 使用 store 中的缓存数据
     userProfile.value = authStore.user || {}
   } finally {
@@ -183,7 +183,7 @@ async function handleChangePassword() {
       passwordFormRef.value.resetFields()
     }
   } catch (e) {
-    console.error('修改密码失败', e)
+    ElMessage.error(t('settings.passwordChangeFailed'))
   } finally {
     passwordLoading.value = false
   }

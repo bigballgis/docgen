@@ -33,7 +33,7 @@
       <h2 class="section-title">{{ $t('home.quickActions') }}</h2>
       <el-row :gutter="20">
         <el-col :xs="24" :sm="8" v-for="action in quickActions" :key="action.title">
-          <div class="quick-action-card" @click="$router.push(action.path)">
+          <div class="quick-action-card" @click="$router.push({ path: action.path, query: action.query })">
             <div class="action-icon" :style="{ backgroundColor: action.bgColor, color: action.iconColor }">
               <el-icon :size="24"><component :is="action.icon" /></el-icon>
             </div>
@@ -91,11 +91,11 @@
               size="small"
               :type="statusType(row.status)"
             >
-              {{ statusLabel(row.status) }}
+              {{ statusLabel(row.status, t) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" :label="$t('document.generatedAt')" width="180" />
+        <el-table-column prop="createTime" :label="$t('document.generatedAt')" width="180" sortable />
       </el-table>
     </section>
   </div>
@@ -104,8 +104,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
 import { EditPen, Files, Document, DataLine, Tickets, ArrowRight } from '@element-plus/icons-vue'
 import { getDocumentList, getTemplates, getDashboardStats } from '@/api/index'
+import { extractList, extractTotal } from '@/utils/response'
+import { statusType, statusLabel } from '@/utils/status'
 
 const { t } = useI18n()
 
@@ -136,10 +139,10 @@ async function loadStats() {
         getTemplates({ page: 0, size: 1 })
       ])
       if (docRes.status === 'fulfilled') {
-        docCount.value = docRes.value?.totalElements || docRes.value?.total || docRes.value?.totalCount || 0
+        docCount.value = extractTotal(docRes.value)
       }
       if (tplRes.status === 'fulfilled') {
-        templateCount.value = tplRes.value?.totalElements || tplRes.value?.total || tplRes.value?.totalCount || 0
+        templateCount.value = extractTotal(tplRes.value)
       }
       // 今日生成数暂时无法从列表 API 获取，设为 0
       todayCount.value = 0
@@ -157,6 +160,7 @@ const quickActions = computed(() => [
     desc: t('home.generateFOLDesc'),
     icon: 'Tickets',
     path: '/generate',
+    query: { type: 'FOL' },
     bgColor: 'rgba(26, 54, 93, 0.08)',
     iconColor: '#1a365d'
   },
@@ -165,6 +169,7 @@ const quickActions = computed(() => [
     desc: t('home.generateLODesc'),
     icon: 'DataLine',
     path: '/generate',
+    query: { type: 'LO' },
     bgColor: 'rgba(201, 169, 110, 0.12)',
     iconColor: '#c9a96e'
   },
@@ -213,31 +218,13 @@ async function loadRecentDocs() {
   recentLoading.value = true
   try {
     const data = await getDocumentList({ page: 0, size: 5 })
-    recentDocs.value = data?.content || data?.list || data?.records || []
+    recentDocs.value = extractList(data)
   } catch (e) {
-    console.error('加载最近文档失败', e)
+    ElMessage.error(t('common.loadFailed'))
     recentDocs.value = []
   } finally {
     recentLoading.value = false
   }
-}
-
-function statusType(status) {
-  const map = {
-    completed: 'success',
-    processing: 'warning',
-    failed: 'danger'
-  }
-  return map[status] || 'info'
-}
-
-function statusLabel(status) {
-  const map = {
-    completed: t('home.completed'),
-    processing: t('home.generating'),
-    failed: t('home.failed')
-  }
-  return map[status] || status
 }
 
 // ==================== 页面初始化 ====================

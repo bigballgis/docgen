@@ -1,10 +1,3 @@
-version: "3.9"
-
-# ============================================================
-# DocGen Platform - 企业级低代码文档生成平台
-# 面向外企银行职员，生成 FOL、LO 等贸易金融文档
-# ============================================================
-
 services:
   # ----------------------------------------------------------
   # Nginx 反向代理 (入口)
@@ -364,38 +357,42 @@ services:
         max-file: "5"
 
   # ----------------------------------------------------------
-  # 后端 API 服务 (Node.js)
+  # 后端 API 服务 (Spring Boot 3.2 + Java 17)
   # ----------------------------------------------------------
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: ../backend
+      dockerfile: docker/Dockerfile
     container_name: docgen-backend
     restart: unless-stopped
     environment:
-      NODE_ENV: production
-      PORT: 3001
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_NAME: docgen_platform
-      DATABASE_USER: docgen
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-      MINIO_BUCKET: docgen-documents
-      MINIO_USE_SSL: "false"
-      KAFKA_BROKERS: kafka:9092
+      # Spring Boot 配置
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/docgen_platform
+      SPRING_DATASOURCE_USERNAME: docgen
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_PROFILES_INCLUDE: prod
+      # JWT
       JWT_SECRET: ${JWT_SECRET}
+      # 文件存储
+      FILE_UPLOAD_DIR: /app/uploads
+      FILE_OUTPUT_DIR: /app/outputs
+      # Kafka（可选）
+      KAFKA_ENABLED: "true"
+      KAFKA_BROKERS: kafka:9092
+      # Euro-Office
       EURO_OFFICE_URL: http://euro-office:8080
       EURO_OFFICE_JWT_SECRET: ${EURO_OFFICE_JWT_SECRET}
-      LOG_LEVEL: info
+      # JVM 参数
+      JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0}
+      # 时区
+      TZ: Asia/Shanghai
     expose:
       - "3001"
+    volumes:
+      - backend-uploads:/app/uploads
+      - backend-outputs:/app/outputs
     depends_on:
       postgres:
         condition: service_healthy
@@ -413,14 +410,14 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 512M
+          cpus: '2.0'
+          memory: 1G
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3001/health || exit 1"]
-      interval: 20s
-      timeout: 5s
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3001/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
       retries: 5
-      start_period: 20s
+      start_period: 60s
     logging:
       driver: json-file
       options:
@@ -428,12 +425,12 @@ services:
         max-file: "5"
 
   # ----------------------------------------------------------
-  # 前端服务 (Vue3)
+  # 前端服务 (Vue3 + Nginx)
   # ----------------------------------------------------------
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: ../frontend
+      dockerfile: docker/Dockerfile
     container_name: docgen-frontend
     restart: unless-stopped
     volumes:
@@ -570,6 +567,10 @@ volumes:
     name: docgen-frontend-dist
   nginx-logs:
     name: docgen-nginx-logs
+  backend-uploads:
+    name: docgen-backend-uploads
+  backend-outputs:
+    name: docgen-backend-outputs
   prometheus-data:
     name: docgen-prometheus-data
   grafana-data:

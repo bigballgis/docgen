@@ -26,6 +26,7 @@
       <iframe
         :src="iframeSrc"
         class="compare-iframe"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
         allowfullscreen
       ></iframe>
     </div>
@@ -36,7 +37,7 @@
         <el-tag type="success">+{{ stats.added }} {{ $t('version.added') }}</el-tag>
         <el-tag type="danger">-{{ stats.deleted }} {{ $t('version.deleted') }}</el-tag>
       </div>
-      <div class="diff-content" v-html="fallbackHtml"></div>
+      <div class="diff-content" v-html="sanitizeHtml(fallbackHtml)"></div>
     </div>
 
     <!-- 无数据 -->
@@ -49,6 +50,7 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { SuccessFilled, WarningFilled, Loading, CircleCloseFilled } from '@element-plus/icons-vue'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 const props = defineProps({
   mode: { type: String, default: 'html-diff' }, // 'euro-office' | 'html-diff'

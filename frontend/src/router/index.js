@@ -48,6 +48,24 @@ const routes = [
     name: 'UserSettings',
     component: () => import('@/views/UserSettings.vue'),
     meta: { title: '个人设置', titleKey: 'settings.title' }
+  },
+  {
+    path: '/tenants',
+    name: 'TenantManage',
+    component: () => import('@/views/TenantManage.vue'),
+    meta: { title: '租户管理', titleKey: 'tenant.manage', requiresAuth: true, adminOnly: true }
+  },
+  {
+    path: '/users',
+    name: 'UserManage',
+    component: () => import('@/views/UserManage.vue'),
+    meta: { title: '用户管理', titleKey: 'user.manage', requiresAuth: true, adminOnly: true }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/views/NotFound.vue'),
+    meta: { title: 'common.pageNotFound' }
   }
 ]
 
@@ -63,7 +81,7 @@ router.beforeEach((to, from, next) => {
   // 设置页面标题（使用静态 title，因为 i18n 可能还未初始化）
   document.title = `${to.meta.title || '银文通'} - 银文通 DocGen`
 
-  const token = localStorage.getItem('token')
+  const token = sessionStorage.getItem('token') || localStorage.getItem('token')
 
   if (token) {
     // 已登录

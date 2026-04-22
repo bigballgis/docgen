@@ -59,7 +59,7 @@
           </div>
           <div class="comp-item-body">
             <div class="comp-item-header">
-              <span class="comp-item-name">{{ item.fragment_name || item.name || 'Unknown' }}</span>
+              <span class="comp-item-name">{{ item.fragment_name || item.name || t('common.unknown') }}</span>
               <el-tag v-if="item.fragment_category" size="small" type="info">{{ item.fragment_category }}</el-tag>
             </div>
             <el-input
@@ -86,12 +86,12 @@
 
     <!-- 预览对话框 -->
     <el-dialog v-model="showPreview" :title="$t('composition.preview')" width="800px" append-to-body top="5vh">
-      <div class="preview-content" v-loading="previewLoading" v-html="previewHtml"></div>
+      <div class="preview-content" v-loading="previewLoading" v-html="sanitizeHtml(previewHtml)"></div>
     </el-dialog>
 
     <!-- 片段预览对话框 -->
     <el-dialog v-model="showItemPreview" :title="itemPreviewTitle" width="700px" append-to-body top="5vh">
-      <div class="preview-content" v-html="itemPreviewHtml"></div>
+      <div class="preview-content" v-html="sanitizeHtml(itemPreviewHtml)"></div>
     </el-dialog>
   </div>
 </template>
@@ -102,6 +102,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, View, Check, Delete, Rank } from '@element-plus/icons-vue'
 import { getFragments, getComposition, saveComposition, previewComposition, previewFragment } from '@/api/index'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 const props = defineProps({
   templateId: { type: [Number, String], required: true },
@@ -144,7 +145,7 @@ async function loadFragments() {
     const data = await getFragments({ size: 100 })
     allFragments.value = data?.content || data?.list || []
   } catch (e) {
-    console.error('加载片段列表失败', e)
+    ElMessage.error(t('common.loadFailed'))
   } finally {
     loadingFragments.value = false
   }
@@ -255,7 +256,7 @@ async function handleSave() {
     isDirty.value = false
     emit('saved')
   } catch (e) {
-    console.error('保存编排失败', e)
+    ElMessage.error(t('composition.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -269,7 +270,7 @@ async function handlePreview() {
     const data = await previewComposition(props.templateId)
     previewHtml.value = data?.html || ''
   } catch (e) {
-    previewHtml.value = '<p style="color:red;">预览加载失败</p>'
+    previewHtml.value = `<p style="color:red;">${t('common.previewFailed')}</p>`
   } finally {
     previewLoading.value = false
   }
@@ -284,7 +285,7 @@ async function handlePreviewItem(item) {
     const data = await previewFragment(item.fragment_id)
     itemPreviewHtml.value = data?.html || ''
   } catch (e) {
-    itemPreviewHtml.value = '<p style="color:red;">预览加载失败</p>'
+    itemPreviewHtml.value = `<p style="color:red;">${t('common.previewFailed')}</p>`
   }
 }
 

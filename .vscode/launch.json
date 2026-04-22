@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "启动后端 (Spring Boot)",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend",
+      "mainClass": "com.docgen.DocgenApplication",
+      "projectName": "docgen-backend",
+      "args": "",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "type": "node",
+      "name": "启动前端 (Vite Dev)",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "Local:.*http://localhost:(\\d+)",
+        "uriFormat": "http://localhost:%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "type": "node",
+      "name": "前端构建 (Build)",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "build"
+      ],
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "全栈启动 (后端 + 前端)",
+      "configurations": [
+        "启动后端 (Spring Boot)",
+        "启动前端 (Vite Dev)"
+      ],
+      "stopAll": true
+    }
+  ]
+}

@@ -40,9 +40,9 @@
           <div class="unavailable-steps">
             <h3>{{ $t('editor.deploySteps') }}</h3>
             <el-steps direction="vertical" :active="3" class="deploy-steps">
-              <el-step :title="$t('editor.deploySteps')" description="docker pull onlyoffice/documentserver" />
-              <el-step :title="$t('editor.deploySteps')" description="docker run -i -t -d -p 8080:80 onlyoffice/documentserver" />
-              <el-step :title="$t('editor.deploySteps')" description="Configure Euro-Office service address in system settings" />
+              <el-step :title="$t('editor.deploySteps')" :description="$t('editor.dockerPull')" />
+              <el-step :title="$t('editor.deploySteps')" :description="$t('editor.dockerRun')" />
+              <el-step :title="$t('editor.deploySteps')" :description="$t('editor.configureHint')" />
             </el-steps>
           </div>
           <div class="unavailable-actions">
@@ -81,7 +81,7 @@ let docEditorInstance = null
  */
 async function checkEditorAvailable() {
   try {
-    const response = await fetch('http://localhost:8080/web-apps/appsapi/documents/api.js', {
+    const response = await fetch(`${import.meta.env.VITE_EURO_OFFICE_URL || ''}/web-apps/appsapi/documents/api.js`, {
       method: 'HEAD',
       mode: 'no-cors'
     })
@@ -110,7 +110,7 @@ async function initEditor() {
 
     // 动态加载 Euro-Office API 脚本
     const script = document.createElement('script')
-    script.src = 'http://localhost:8080/web-apps/appsapi/documents/api.js'
+    script.src = `${import.meta.env.VITE_EURO_OFFICE_URL || ''}/web-apps/appsapi/documents/api.js`
     script.onload = () => {
       createEditor(editorConfig)
     }

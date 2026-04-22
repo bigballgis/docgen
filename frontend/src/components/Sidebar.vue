@@ -1,24 +1,24 @@
 <template>
-  <aside class="sidebar" :class="{ collapsed: isCollapsed }">
+  <aside class="sidebar" :class="{ collapsed: uiStore.isCollapsed }">
     <!-- Logo 区域 -->
     <div class="sidebar-logo" @click="$router.push('/')">
       <div class="logo-icon">
         <el-icon :size="20"><Document /></el-icon>
       </div>
-      <span class="logo-text" v-show="!isCollapsed">{{ $t('app.name') }}</span>
+      <span class="logo-text" v-show="!uiStore.isCollapsed">{{ $t('app.name') }}</span>
     </div>
 
     <!-- 折叠/展开按钮 -->
-    <div class="sidebar-collapse-btn" @click="toggleCollapse">
+    <div class="sidebar-collapse-btn" @click="uiStore.toggleSidebar">
       <el-icon :size="18">
-        <Fold v-if="!isCollapsed" />
+        <Fold v-if="!uiStore.isCollapsed" />
         <Expand v-else />
       </el-icon>
-      <span class="collapse-label" v-show="!isCollapsed">{{ $t('common.collapse') }}</span>
+      <span class="collapse-label" v-show="!uiStore.isCollapsed">{{ $t('common.collapse') }}</span>
     </div>
 
     <!-- 租户切换器（仅 admin 可见） -->
-    <div v-if="authStore.isAdmin" class="tenant-switcher" v-show="!isCollapsed">
+    <div v-if="authStore.isAdmin" class="tenant-switcher" v-show="!uiStore.isCollapsed">
       <el-select
         :model-value="authStore.tenantId"
         :placeholder="$t('tenant.switch')"
@@ -47,21 +47,21 @@
         :class="['sidebar-nav-item', { active: isActive(nav.path) }]"
       >
         <el-icon class="nav-icon"><component :is="nav.icon" /></el-icon>
-        <span class="nav-label" v-show="!isCollapsed">{{ nav.label }}</span>
+        <span class="nav-label" v-show="!uiStore.isCollapsed">{{ nav.label }}</span>
       </router-link>
     </nav>
 
     <!-- 底部用户信息 -->
     <div class="sidebar-footer">
       <!-- 语言切换 -->
-      <LangSwitch v-show="!isCollapsed" />
+      <LangSwitch v-show="!uiStore.isCollapsed" />
       <!-- 暗色模式切换 -->
-      <DarkModeSwitch :is-collapsed="isCollapsed" />
+      <DarkModeSwitch :is-collapsed="uiStore.isCollapsed" />
       <div class="sidebar-user" @click="$router.push('/settings')">
         <div class="user-avatar">
           {{ authStore.username.charAt(0) }}
         </div>
-        <span class="user-name" v-show="!isCollapsed">{{ authStore.username }}</span>
+        <span class="user-name" v-show="!uiStore.isCollapsed">{{ authStore.username }}</span>
         <el-tooltip :content="$t('common.logout')" placement="top" :show-after="500">
           <div class="logout-btn" @click.stop="handleLogout">
             <el-icon :size="16"><SwitchButton /></el-icon>
@@ -73,7 +73,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -86,38 +86,35 @@ import {
   SwitchButton,
   OfficeBuilding,
   Fold,
-  Expand
+  Expand,
+  User
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
 import LangSwitch from './LangSwitch.vue'
 import DarkModeSwitch from './DarkModeSwitch.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const uiStore = useUiStore()
 const { t } = useI18n()
 
-// ==================== 侧边栏折叠 ====================
-const isCollapsed = ref(false)
-
-function initSidebarCollapse() {
-  const saved = localStorage.getItem('sidebarCollapsed')
-  isCollapsed.value = saved === 'true'
-}
-
-function toggleCollapse() {
-  isCollapsed.value = !isCollapsed.value
-  localStorage.setItem('sidebarCollapsed', String(isCollapsed.value))
-}
-
 // 导航菜单（使用 i18n key）
-const navItems = computed(() => [
-  { path: '/', label: t('nav.home'), icon: 'HomeFilled' },
-  { path: '/templates', label: t('nav.templates'), icon: 'Files' },
-  { path: '/fragments', label: t('nav.fragments'), icon: 'CopyDocument' },
-  { path: '/generate', label: t('nav.generate'), icon: 'EditPen' },
-  { path: '/history', label: t('nav.history'), icon: 'Clock' }
-])
+const navItems = computed(() => {
+  const items = [
+    { path: '/', label: t('nav.home'), icon: 'HomeFilled' },
+    { path: '/templates', label: t('nav.templates'), icon: 'Files' },
+    { path: '/fragments', label: t('nav.fragments'), icon: 'CopyDocument' },
+    { path: '/generate', label: t('nav.generate'), icon: 'EditPen' },
+    { path: '/history', label: t('nav.history'), icon: 'Clock' }
+  ]
+  if (authStore.isAdmin) {
+    items.push({ path: '/users', label: t('user.manage'), icon: 'User' })
+    items.push({ path: '/tenants', label: t('tenant.manage'), icon: 'OfficeBuilding' })
+  }
+  return items
+})
 
 const isActive = (path) => {
   if (path === '/') return route.path === '/'
@@ -147,7 +144,6 @@ function handleTenantChange(tenantId) {
 
 // 页面初始化
 onMounted(() => {
-  initSidebarCollapse()
   if (authStore.isLoggedIn && authStore.isAdmin) {
     authStore.fetchTenants()
   }

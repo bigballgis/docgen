@@ -1,0 +1,36 @@
+# Trae 索引忽略文件
+# 补充 .gitignore，控制 Trae 代码索引范围
+
+# 依赖目录
+node_modules/
+target/
+
+# 构建产物
+dist/
+*.jar
+*.class
+
+# 数据目录
+data/
+uploads/
+outputs/
+*.db
+*.db-shm
+*.db-wal
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+
+# 环境配置（含敏感信息）
+.env
+.env.local
+
+# IDE 配置（避免递归索引）
+.trae/settings.local.json
+
+# 遗留代码
+legacy/

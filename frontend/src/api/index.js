@@ -1,6 +1,27 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
+// 延迟获取 i18n 实例，避免循环依赖
+function getI18n() {
+  try {
+    return window.__vue_app__?.config?.globalProperties?.$t || ((key) => key)
+  } catch {
+    return (key) => key
+  }
+}
+
+function getStatusMessage(status) {
+  const t = getI18n()
+  const messages = {
+    400: t('httpError.badRequest'),
+    401: t('httpError.unauthorized'),
+    403: t('httpError.forbidden'),
+    404: t('httpError.notFound'),
+    500: t('httpError.serverError')
+  }
+  return messages[status] || t('httpError.unknown')
+}
+
 const request = axios.create({
   baseURL: '/api/v1',
   timeout: 30000,
@@ -12,7 +33,7 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem('token')
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -24,7 +45,6 @@ request.interceptors.request.use(
     return config
   },
   (error) => {
-    console.error('请求错误：', error)
     return Promise.reject(error)
   }
 )
@@ -38,8 +58,12 @@ request.interceptors.response.use(
       return response
     }
     // 如果后端返回统一的响应格式，可在此处做解包处理
-    if (data.code === 200 || data.code === 0) {
+    if (data && (data.code === 200 || data.code === 0)) {
       return data.data
+    }
+    // 如果后端直接返回数据（没有 code 字段，如 Spring Boot ResponseEntity），直接返回
+    if (data && data.code === undefined) {
+      return data
     }
     ElMessage.error(data.message || '请求失败')
     return Promise.reject(new Error(data.message || '请求失败'))
@@ -47,14 +71,7 @@ request.interceptors.response.use(
   (error) => {
     const { response } = error
     if (response) {
-      const statusMessages = {
-        400: '请求参数错误',
-        401: '未授权，请重新登录',
-        403: '拒绝访问',
-        404: '请求资源不存在',
-        500: '服务器内部错误'
-      }
-      const message = statusMessages[response.status] || `请求失败 (${response.status})`
+      const message = getStatusMessage(response.status)
       ElMessage.error(message)
 
       // 401 状态码自动跳转登录页
@@ -63,15 +80,21 @@ request.interceptors.response.use(
         sessionStorage.removeItem('user')
         sessionStorage.removeItem('tenantId')
         sessionStorage.removeItem('tenantName')
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        localStorage.removeItem('tenantId')
+        localStorage.removeItem('tenantName')
         // 避免在登录页重复跳转
-        if (window.location.hash !== '#/login') {
-          window.location.hash = '#/login'
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
         }
       }
     } else if (error.code === 'ECONNABORTED') {
-      ElMessage.error('请求超时，请稍后重试')
+      const t = getI18n()
+      ElMessage.error(t('httpError.timeout'))
     } else {
-      ElMessage.error('网络连接异常，请检查网络')
+      const t = getI18n()
+      ElMessage.error(t('httpError.networkError'))
     }
     return Promise.reject(error)
   }
@@ -85,14 +108,6 @@ request.interceptors.response.use(
  */
 export function login(data) {
   return request.post('/auth/login', data)
-}
-
-/**
- * 用户注册
- * @param {Object} data - { username, password, email }
- */
-export function register(data) {
-  return request.post('/auth/register', data)
 }
 
 /**
@@ -110,14 +125,20 @@ export function updatePassword(data) {
   return request.put('/auth/password', data)
 }
 
-/**
- * 获取用户个人资料
- */
-export function getUserProfile() {
-  return request.get('/auth/profile')
+// ==================== 租户 API ====================
+
+// 用户管理（管理员）
+export function getUserList(params) {
+  return request.get('/auth/users', { params })
 }
 
-// ==================== 租户 API ====================
+export function updateUserRole(userId, role) {
+  return request.put(`/auth/users/${userId}/role`, null, { params: { role } })
+}
+
+export function updateUserStatus(userId, status) {
+  return request.put(`/auth/users/${userId}/status`, null, { params: { status } })
+}
 
 /**
  * 获取租户列表
@@ -126,11 +147,17 @@ export function getTenants() {
   return request.get('/tenants')
 }
 
-/**
- * 获取当前租户信息
- */
-export function getCurrentTenant() {
-  return request.get('/tenants/current')
+// 租户管理（管理员）
+export function getTenantList(params) {
+  return request.get('/tenants', { params })
+}
+
+export function createTenant(data) {
+  return request.post('/tenants', data)
+}
+
+export function updateTenant(id, data) {
+  return request.put(`/tenants/${id}`, data)
 }
 
 // ==================== 模板管理 API ====================
@@ -139,11 +166,10 @@ export function getCurrentTenant() {
  * 上传模板
  * @param {FormData} formData - 包含 file, name, description, category 的 FormData
  */
-export function uploadTemplate(formData) {
+export function uploadTemplate(formData, config = {}) {
   return request.post('/templates/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    ...config
   })
 }
 
@@ -254,14 +280,6 @@ export function getDocumentList(params) {
 }
 
 /**
- * 获取文档生成状态
- * @param {string} taskId - 任务 ID
- */
-export function getDocumentStatus(taskId) {
-  return request.get(`/documents/status/${taskId}`)
-}
-
-/**
  * 删除文档
  * @param {number|string} id - 文档 ID
  */
@@ -296,15 +314,6 @@ export function getEditorConfig(fileKey) {
  */
 export function getVersionList(templateId) {
   return request.get(`/templates/${templateId}/versions`)
-}
-
-/**
- * 获取模板指定版本详情
- * @param {number|string} templateId - 模板 ID
- * @param {number|string} version - 版本号
- */
-export function getVersion(templateId, version) {
-  return request.get(`/templates/${templateId}/versions/${version}`)
 }
 
 /**
@@ -345,14 +354,6 @@ export function rollbackVersion(templateId, version) {
  */
 export function getFragments(params) {
   return request.get('/fragments', { params })
-}
-
-/**
- * 获取片段详情
- * @param {number|string} id - 片段 ID
- */
-export function getFragment(id) {
-  return request.get(`/fragments/${id}`)
 }
 
 /**
@@ -451,33 +452,6 @@ export function saveComposition(templateId, data) {
 }
 
 /**
- * 添加片段到编排
- * @param {number|string} templateId - 模板 ID
- * @param {Object} data - { fragmentId, sectionTitle, enabled }
- */
-export function addFragmentToComposition(templateId, data) {
-  return request.post(`/templates/${templateId}/composition/fragments`, data)
-}
-
-/**
- * 从编排中移除片段
- * @param {number|string} templateId - 模板 ID
- * @param {number|string} fragmentId - 片段 ID
- */
-export function removeFragmentFromComposition(templateId, fragmentId) {
-  return request.delete(`/templates/${templateId}/composition/fragments/${fragmentId}`)
-}
-
-/**
- * 编排重排序
- * @param {number|string} templateId - 模板 ID
- * @param {Object} data - { fragmentIds: [...] }
- */
-export function reorderComposition(templateId, data) {
-  return request.put(`/templates/${templateId}/composition/reorder`, data)
-}
-
-/**
  * 预览编排文档
  * @param {number|string} templateId - 模板 ID
  */
@@ -491,6 +465,34 @@ export function previewComposition(templateId) {
  */
 export function generateComposition(templateId) {
   return request.post(`/templates/${templateId}/composition/generate`, null, { responseType: 'blob' })
+}
+
+// ==================== 导出 API ====================
+
+/**
+ * 文档导出
+ * @param {string} format - 导出格式 (json, excel 等)
+ */
+export function exportDocuments(format) {
+  return request.get('/documents/export', { params: { format }, responseType: 'blob' })
+}
+
+/**
+ * 模板导出
+ * @param {string} format - 导出格式 (json, excel 等)
+ */
+export function exportTemplates(format) {
+  return request.get('/templates/export', { params: { format }, responseType: 'blob' })
+}
+
+// ==================== 编辑器文件下载 API ====================
+
+/**
+ * 下载编辑器文件
+ * @param {string} fileKey - 文件标识
+ */
+export function downloadEditorFile(fileKey) {
+  return request.get(`/editor/download/${fileKey}`, { responseType: 'blob' })
 }
 
 export default request

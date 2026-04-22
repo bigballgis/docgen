@@ -5,7 +5,7 @@
       <div class="version-selectors">
         <div class="selector">
           <label>{{ $t('version.oldVersion') }}</label>
-          <el-select v-model="selectedV1" placeholder="Select version" style="width: 220px">
+          <el-select v-model="selectedV1" :placeholder="$t('version.selectVersion')" style="width: 220px">
             <el-option
               v-for="v in versions"
               :key="v.version"
@@ -19,7 +19,7 @@
         </el-button>
         <div class="selector">
           <label>{{ $t('version.newVersion') }}</label>
-          <el-select v-model="selectedV2" placeholder="Select version" style="width: 220px">
+          <el-select v-model="selectedV2" :placeholder="$t('version.selectVersion')" style="width: 220px">
             <el-option
               v-for="v in versions"
               :key="v.version"
@@ -63,18 +63,18 @@
     <div class="compare-content side-by-side" v-if="compareMode === 'sideBySide' && compareResult">
       <div class="compare-panel">
         <div class="panel-header">{{ $t('version.oldVersion') }} (v{{ selectedV1 }})</div>
-        <div class="panel-body" v-html="compareResult.html1"></div>
+        <div class="panel-body" v-html="sanitizeHtml(compareResult.html1)"></div>
       </div>
       <div class="compare-divider"></div>
       <div class="compare-panel">
         <div class="panel-header">{{ $t('version.newVersion') }} (v{{ selectedV2 }})</div>
-        <div class="panel-body" v-html="compareResult.html2"></div>
+        <div class="panel-body" v-html="sanitizeHtml(compareResult.html2)"></div>
       </div>
     </div>
 
     <!-- 行内对比模式（高亮增删） -->
     <div class="compare-content inline-diff" v-if="compareMode === 'inline' && compareResult">
-      <div class="panel-body" v-html="renderedDiff"></div>
+      <div class="panel-body" v-html="sanitizeHtml(renderedDiff)"></div>
     </div>
 
     <!-- 滑动对比模式 -->
@@ -87,11 +87,11 @@
         @mouseup="onSliderUp"
         @mouseleave="onSliderUp"
       >
-        <div class="slider-layer old-layer" v-html="compareResult.html1"></div>
+        <div class="slider-layer old-layer" v-html="sanitizeHtml(compareResult.html1)"></div>
         <div
           class="slider-layer new-layer"
           :style="{ clipPath: `inset(0 0 0 ${sliderPosition}%)` }"
-          v-html="compareResult.html2"
+          v-html="sanitizeHtml(compareResult.html2)"
         ></div>
         <div class="slider-line" :style="{ left: sliderPosition + '%' }">
           <div class="slider-handle">&lt; &gt;</div>
@@ -113,6 +113,8 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Sort } from '@element-plus/icons-vue'
 import { compareVersions, getVersionPreview } from '@/api/index'
+import { sanitizeHtml } from '@/utils/sanitize'
+import { formatTime } from '@/utils/format'
 
 const props = defineProps({
   templateId: {
@@ -146,17 +148,6 @@ const sliderContainer = ref(null)
 const isDragging = ref(false)
 
 /**
- * 格式化时间
- */
-function formatTime(time) {
-  if (!time) return '-'
-  const d = new Date(time)
-  if (isNaN(d.getTime())) return time
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-/**
  * 交换版本选择
  */
 function swapVersions() {
@@ -178,7 +169,7 @@ async function loadCompare() {
     const data = await compareVersions(props.templateId, selectedV1.value, selectedV2.value)
     compareResult.value = data || null
   } catch (e) {
-    console.error('加载版本对比失败', e)
+    ElMessage.error(t('common.loadFailed'))
     compareResult.value = null
   } finally {
     loading.value = false

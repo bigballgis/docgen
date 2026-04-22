@@ -36,7 +36,7 @@
 
     <!-- 预览对话框 -->
     <el-dialog v-model="showPreviewDialog" :title="previewTitle" width="720px" append-to-body top="5vh">
-      <div class="preview-content" v-loading="previewLoading" v-html="previewHtml"></div>
+      <div class="preview-content" v-loading="previewLoading" v-html="sanitizeHtml(previewHtml)"></div>
     </el-dialog>
 
     <!-- 版本对比对话框 -->
@@ -73,6 +73,8 @@ import { User, View, Sort, RefreshLeft } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getFragmentVersionList, getFragmentVersion, rollbackFragmentVersion, compareFragmentVersions } from '@/api/index'
 import EuroOfficeCompare from './EuroOfficeCompare.vue'
+import { sanitizeHtml } from '@/utils/sanitize'
+import { formatTime } from '@/utils/format'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -106,14 +108,6 @@ const compareError = ref('')
 
 watch(() => props.modelValue, (val) => { visible.value = val })
 watch(visible, (val) => { emit('update:modelValue', val) })
-
-function formatTime(time) {
-  if (!time) return '-'
-  const d = new Date(time)
-  if (isNaN(d.getTime())) return time
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
 
 async function loadVersions() {
   loading.value = true
@@ -175,7 +169,7 @@ async function loadCompare() {
       compareStats.value = data.stats || null
     }
   } catch (e) {
-    compareError.value = e.message || '对比失败'
+    compareError.value = e.message || t('version.compareFailed')
   } finally {
     compareLoading.value = false
   }
@@ -196,7 +190,7 @@ async function handleRollback(ver) {
     loadVersions()
     emit('rollback-success')
   } catch (e) {
-    console.error('回滚失败', e)
+    ElMessage.error(t('fragment.rollbackFailed'))
   }
 }
 </script>

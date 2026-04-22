@@ -10,6 +10,10 @@
           <el-icon><Upload /></el-icon>
           {{ $t('template.upload') }}
         </el-button>
+        <el-button type="success" @click="handleExport">
+          <el-icon><Download /></el-icon>
+          {{ $t('template.export') }}
+        </el-button>
       </div>
 
       <!-- 标签页 -->
@@ -60,7 +64,7 @@
             :empty-text="$t('template.noData')"
           >
             <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="name" :label="$t('template.name')" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="name" :label="$t('template.name')" min-width="200" show-overflow-tooltip sortable />
             <el-table-column prop="category" :label="$t('template.category')" width="120">
               <template #default="{ row }">
                 <el-tag size="small" type="info">
@@ -76,7 +80,7 @@
               </template>
             </el-table-column>
             <el-table-column prop="description" :label="$t('template.description')" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="createTime" :label="$t('template.createdAt')" width="180" />
+            <el-table-column prop="createTime" :label="$t('template.createdAt')" width="180" sortable />
             <el-table-column :label="$t('template.actions')" width="360" fixed="right">
               <template #default="{ row }">
                 <el-button type="primary" link size="small" @click="handleViewDetail(row)">
@@ -121,6 +125,17 @@
                   @click="handleSubmitApproval(row)"
                 >
                   {{ $t('approval.resubmit') }}
+                </el-button>
+                <!-- published 状态：编排 -->
+                <el-button
+                  v-if="row.status === 'published'"
+                  type="primary"
+                  link
+                  size="small"
+                  @click="handleOpenComposition(row)"
+                >
+                  <el-icon :size="14"><Grid /></el-icon>
+                  {{ $t('composition.title') }}
                 </el-button>
                 <el-button type="danger" link size="small" @click="handleDelete(row)">
                   {{ $t('template.delete') }}
@@ -249,6 +264,12 @@
               </div>
             </template>
           </el-upload>
+          <el-progress
+            v-if="uploadProgress > 0 && uploadProgress < 100"
+            :percentage="uploadProgress"
+            :stroke-width="6"
+            style="margin-top: 8px"
+          />
         </el-form-item>
         <el-form-item :label="$t('version.changeNote')">
           <el-input
@@ -417,16 +438,33 @@
       :template-id="versionHistoryTemplateId"
       @rollback-success="handleRollbackSuccess"
     />
+
+    <!-- 模板编排对话框 -->
+    <el-dialog
+      v-model="showCompositionDialog"
+      :title="compositionDialogTitle"
+      width="1100px"
+      :close-on-click-modal="false"
+      top="4vh"
+      destroy-on-close
+    >
+      <CompositionEditor
+        v-if="showCompositionDialog"
+        :template-id="compositionTemplateId"
+        @saved="handleCompositionSaved"
+      />
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload, Search, UploadFilled, Clock } from '@element-plus/icons-vue'
+import { Upload, Search, UploadFilled, Clock, Grid, Download } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import VersionHistory from '@/components/VersionHistory.vue'
+const VersionHistory = defineAsyncComponent(() => import('@/components/VersionHistory.vue'))
+const CompositionEditor = defineAsyncComponent(() => import('@/components/CompositionEditor.vue'))
 import {
   getTemplates,
   getTemplate,
@@ -437,8 +475,10 @@ import {
   submitForApproval,
   approveTemplate,
   rejectTemplate,
-  getPendingApprovals
+  getPendingApprovals,
+  exportTemplates
 } from '@/api/index'
+import { extractList, extractTotal } from '@/utils/response'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -501,7 +541,7 @@ async function loadTemplates() {
     }
     const data = await getTemplates(params)
     // 后端返回格式可能是 { content: [], totalElements: 0 } 或 { list: [], total: 0 }
-    let list = data?.content || data?.list || data?.records || []
+    let list = extractList(data)
     // 解析每个模板的 fields JSON 字符串为数组
     list = list.map(item => {
       if (item.fields && typeof item.fields === 'string') {
@@ -514,9 +554,9 @@ async function loadTemplates() {
       return item
     })
     templateList.value = list
-    total.value = data?.totalElements || data?.total || data?.totalCount || 0
+    total.value = extractTotal(data)
   } catch (e) {
-    console.error('加载模板列表失败', e)
+    ElMessage.error(t('common.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -596,7 +636,7 @@ async function handleSubmitApproval(row) {
     ElMessage.success(t('approval.submitSuccess'))
     loadTemplates()
   } catch (e) {
-    console.error('提交审批失败', e)
+    ElMessage.error(t('common.loadFailed'))
   }
 }
 
@@ -625,7 +665,7 @@ async function handleApprove(row) {
     loadPendingApprovals()
     loadTemplates()
   } catch (e) {
-    console.error('审批通过失败', e)
+    ElMessage.error(t('common.loadFailed'))
   }
 }
 
@@ -663,7 +703,7 @@ async function handleReject() {
     loadPendingApprovals()
     loadTemplates()
   } catch (e) {
-    console.error('驳回失败', e)
+    ElMessage.error(t('approval.rejectFailed'))
   } finally {
     rejecting.value = false
   }
@@ -688,7 +728,7 @@ async function loadPendingApprovals() {
   pendingLoading.value = true
   try {
     const data = await getPendingApprovals()
-    let list = Array.isArray(data) ? data : (data?.content || data?.list || data?.records || [])
+    let list = extractList(data)
     list = list.map(item => {
       if (item.fields && typeof item.fields === 'string') {
         try {
@@ -701,7 +741,7 @@ async function loadPendingApprovals() {
     })
     pendingList.value = list
   } catch (e) {
-    console.error('加载待审批列表失败', e)
+    ElMessage.error(t('common.loadFailed'))
     pendingList.value = []
   } finally {
     pendingLoading.value = false
@@ -729,7 +769,7 @@ async function handleViewApprovalDetail(row) {
     }
     approvalDetail.value = detail
   } catch (e) {
-    console.error('获取审批详情失败', e)
+    ElMessage.error(t('common.loadFailed'))
     approvalDetail.value = row
   } finally {
     approvalDetailLoading.value = false
@@ -756,6 +796,7 @@ const rejectReasonTarget = ref(null)
 // ==================== 上传对话框 ====================
 const showUploadDialog = ref(false)
 const uploading = ref(false)
+const uploadProgress = ref(0)
 const uploadFormRef = ref(null)
 const uploadRef = ref(null)
 
@@ -822,6 +863,7 @@ async function handleUpload() {
   }
 
   uploading.value = true
+  uploadProgress.value = 0
   try {
     const formData = new FormData()
     formData.append('file', uploadForm.file)
@@ -835,16 +877,24 @@ async function handleUpload() {
     if (uploadForm.changeNote) {
       formData.append('changeNote', uploadForm.changeNote)
     }
-    await uploadTemplate(formData)
+    await uploadTemplate(formData, {
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        }
+      }
+    })
+    uploadProgress.value = 100
     ElMessage.success(t('template.uploadSuccess'))
     showUploadDialog.value = false
     // 刷新列表和分类
     loadTemplates()
     loadCategories()
   } catch (e) {
-    console.error('上传模板失败', e)
+    ElMessage.error(t('common.loadFailed'))
   } finally {
     uploading.value = false
+    setTimeout(() => { uploadProgress.value = 0 }, 500)
   }
 }
 
@@ -880,7 +930,7 @@ async function handleViewDetail(row) {
     }
     templateDetail.value = detail
   } catch (e) {
-    console.error('获取模板详情失败', e)
+    ElMessage.error(t('common.loadFailed'))
   } finally {
     detailLoading.value = false
   }
@@ -909,7 +959,7 @@ async function handleParseFields(row) {
     // 刷新列表
     loadTemplates()
   } catch (e) {
-    console.error('解析字段失败', e)
+    ElMessage.error(t('template.parseFailed'))
   }
 }
 
@@ -934,7 +984,7 @@ async function handleDelete(row) {
     ElMessage.success(t('template.deleteSuccess'))
     loadTemplates()
   } catch (e) {
-    console.error('删除模板失败', e)
+    ElMessage.error(t('template.deleteFailed'))
   }
 }
 
@@ -955,6 +1005,40 @@ function handleOpenVersionHistory(row) {
  */
 function handleRollbackSuccess() {
   loadTemplates()
+}
+
+// ==================== 模板编排 ====================
+const showCompositionDialog = ref(false)
+const compositionTemplateId = ref(null)
+const compositionDialogTitle = ref('')
+
+function handleOpenComposition(row) {
+  compositionTemplateId.value = row.id
+  compositionDialogTitle.value = `${row.name} - ${t('composition.title')}`
+  showCompositionDialog.value = true
+}
+
+function handleCompositionSaved() {
+  ElMessage.success(t('composition.saveSuccess'))
+}
+
+/**
+ * 导出模板
+ */
+async function handleExport() {
+  try {
+    const response = await exportTemplates('json')
+    const blob = response.data || response
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `templates_${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success(t('template.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(t('template.exportFailed'))
+  }
 }
 
 // ==================== 页面初始化 ====================

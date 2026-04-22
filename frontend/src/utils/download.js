@@ -9,7 +9,7 @@
  */
 export function downloadBlob(blob, fileName) {
   if (!blob) {
-    console.error('downloadBlob: blob 参数不能为空')
+    throw new Error('downloadBlob: blob 参数不能为空')
     return
   }
 

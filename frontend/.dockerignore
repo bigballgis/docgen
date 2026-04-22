@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+docker/
+Dockerfile
+.dockerignore
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage/
+
+# Environment
+.env.local
+.env.*.local

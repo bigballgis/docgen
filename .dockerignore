@@ -1,0 +1,62 @@
+# ============================================================
+# Docker 构建忽略文件
+# 减小 Docker 上下文大小，加速构建
+# ============================================================
+
+# 版本控制
+.git
+.gitignore
+.gitattributes
+
+# IDE 配置
+.trae/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 前端
+frontend/node_modules/
+frontend/dist/
+
+# 后端
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# 数据目录
+data/
+uploads/
+outputs/
+*.db
+*.db-shm
+*.db-wal
+
+# 日志
+*.log
+
+# 文档（非必要）
+docs/
+*.md
+!README.md
+LICENSE
+
+# 遗留代码
+legacy/
+
+# 环境配置（含敏感信息）
+.env
+.env.local
+.env.*.local
+
+# 上传文件
+.uploads/
+
+# 临时文件
+*.tmp
+*.bak
+*.swp
+*~

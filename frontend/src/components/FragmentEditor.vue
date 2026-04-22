@@ -7,35 +7,35 @@
         </el-button>
       </el-tooltip>
       <div class="toolbar-divider"></div>
-      <el-tooltip content="Bold" placement="bottom">
+      <el-tooltip :content="$t('toolbar.bold')" placement="bottom">
         <el-button size="small" @click="execCmd('bold')" class="toolbar-btn"><b>B</b></el-button>
       </el-tooltip>
-      <el-tooltip content="Italic" placement="bottom">
+      <el-tooltip :content="$t('toolbar.italic')" placement="bottom">
         <el-button size="small" @click="execCmd('italic')" class="toolbar-btn"><i>I</i></el-button>
       </el-tooltip>
-      <el-tooltip content="Underline" placement="bottom">
+      <el-tooltip :content="$t('toolbar.underline')" placement="bottom">
         <el-button size="small" @click="execCmd('underline')" class="toolbar-btn"><u>U</u></el-button>
       </el-tooltip>
-      <el-tooltip content="Strikethrough" placement="bottom">
+      <el-tooltip :content="$t('toolbar.strikethrough')" placement="bottom">
         <el-button size="small" @click="execCmd('strikeThrough')" class="toolbar-btn"><s>S</s></el-button>
       </el-tooltip>
       <div class="toolbar-divider"></div>
-      <el-tooltip content="Heading 1" placement="bottom">
+      <el-tooltip :content="$t('toolbar.heading1')" placement="bottom">
         <el-button size="small" @click="execCmd('formatBlock', 'h1')" class="toolbar-btn">H1</el-button>
       </el-tooltip>
-      <el-tooltip content="Heading 2" placement="bottom">
+      <el-tooltip :content="$t('toolbar.heading2')" placement="bottom">
         <el-button size="small" @click="execCmd('formatBlock', 'h2')" class="toolbar-btn">H2</el-button>
       </el-tooltip>
-      <el-tooltip content="Heading 3" placement="bottom">
+      <el-tooltip :content="$t('toolbar.heading3')" placement="bottom">
         <el-button size="small" @click="execCmd('formatBlock', 'h3')" class="toolbar-btn">H3</el-button>
       </el-tooltip>
       <div class="toolbar-divider"></div>
-      <el-tooltip content="Ordered List" placement="bottom">
+      <el-tooltip :content="$t('toolbar.orderedList')" placement="bottom">
         <el-button size="small" @click="execCmd('insertOrderedList')" class="toolbar-btn">
           <el-icon><List /></el-icon>
         </el-button>
       </el-tooltip>
-      <el-tooltip content="Unordered List" placement="bottom">
+      <el-tooltip :content="$t('toolbar.unorderedList')" placement="bottom">
         <el-button size="small" @click="execCmd('insertUnorderedList')" class="toolbar-btn">
           <el-icon><List /></el-icon>
         </el-button>
@@ -66,6 +66,7 @@
 
 <script setup>
 import { ref, onMounted, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Plus, List } from '@element-plus/icons-vue'
 
 const props = defineProps({
@@ -75,6 +76,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+const { t } = useI18n()
 
 const editorRef = ref(null)
 const showPlaceholderDialog = ref(false)

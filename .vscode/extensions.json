@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "vue.volar",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "redhat.java",
+    "redhat.vscode-yaml",
+    "redhat.vscode-xml",
+    "formulahendry.auto-rename-tag",
+    "bradlc.vscode-tailwindcss",
+    "lokalise.i18n-ally",
+    "eamodio.gitlens",
+    "ms-azuretools.vscode-docker",
+    "rangav.vscode-thunder-client",
+    "vmware.vscode-boot-dev-pack"
+  ]
+}

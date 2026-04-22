@@ -33,13 +33,28 @@ export default defineConfig({
     // 代码分割
     rollupOptions: {
       output: {
-        manualChunks: {
-          // 将第三方库单独打包
-          vendor: ['vue', 'vue-router', 'pinia', 'axios'],
-          // 将 Element Plus 单独打包
-          elementPlus: ['element-plus'],
-          // 将国际化相关代码单独打包
-          i18n: ['vue-i18n']
+        manualChunks(id) {
+          // Element Plus 按模块拆分
+          if (id.includes('element-plus')) {
+            // 将 Element Plus 拆分为更小的 chunk
+            if (id.includes('@element-plus/icons-vue')) {
+              return 'element-icons'
+            }
+            return 'element-plus'
+          }
+          // 第三方核心库
+          if (id.includes('node_modules') && !id.includes('element-plus')) {
+            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router') || id.includes('axios')) {
+              return 'vendor'
+            }
+            if (id.includes('vue-i18n') || id.includes('@intlify')) {
+              return 'i18n'
+            }
+            if (id.includes('dompurify')) {
+              return 'sanitize'
+            }
+            return 'vendor'
+          }
         }
       }
     },
@@ -52,14 +67,6 @@ export default defineConfig({
     // 静态资源目录
     assetsDir: 'assets',
     // 缓存策略
-    assetsInlineLimit: 4096, // 4kb 以下的资源内联
-    // 最小化
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    }
+    assetsInlineLimit: 4096 // 4kb 以下的资源内联
   }
 })

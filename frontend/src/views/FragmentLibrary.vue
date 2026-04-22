@@ -45,7 +45,7 @@
             </div>
             <div class="card-meta">
               <span class="meta-version">v{{ frag.current_version || 1 }}</span>
-              <span class="meta-fields">{{ (frag.fields || []).length }} fields</span>
+              <span class="meta-fields">{{ (frag.fields || []).length }} {{ $t('common.fields') }}</span>
             </div>
           </div>
           <div class="card-actions" @click.stop>
@@ -103,7 +103,7 @@
 
     <!-- 预览对话框 -->
     <el-dialog v-model="showPreviewDialog" :title="previewTitle" width="800px" append-to-body top="5vh">
-      <div class="preview-content" v-html="previewHtml"></div>
+      <div class="preview-content" v-html="sanitizeHtml(previewHtml)"></div>
     </el-dialog>
 
     <!-- 版本历史 -->
@@ -112,13 +112,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Clock } from '@element-plus/icons-vue'
 import { getFragments, createFragment, updateFragment, deleteFragment, getFragmentCategories, previewFragment } from '@/api/index'
-import FragmentEditor from '@/components/FragmentEditor.vue'
-import FragmentVersionHistory from '@/components/FragmentVersionHistory.vue'
+const FragmentEditor = defineAsyncComponent(() => import('@/components/FragmentEditor.vue'))
+const FragmentVersionHistory = defineAsyncComponent(() => import('@/components/FragmentVersionHistory.vue'))
+import { sanitizeHtml } from '@/utils/sanitize'
+import { extractList, extractTotal } from '@/utils/response'
 
 const { t } = useI18n()
 
@@ -179,7 +181,7 @@ async function loadFragments() {
     fragmentList.value = data?.content || data?.list || []
     total.value = data?.totalElements || data?.total || 0
   } catch (e) {
-    console.error('加载片段列表失败', e)
+    ElMessage.error(t('common.loadFailed'))
     fragmentList.value = []
   } finally {
     loading.value = false
@@ -245,7 +247,7 @@ async function handleSave() {
     loadFragments()
     loadCategories()
   } catch (e) {
-    console.error('保存片段失败', e)
+    ElMessage.error(t('common.loadFailed'))
   } finally {
     saving.value = false
   }
@@ -263,7 +265,7 @@ async function handlePreview(frag) {
   try {
     const data = await previewFragment(frag.id)
     previewHtml.value = data?.html || ''
-  } catch { previewHtml.value = '<p style="color:red;">预览加载失败</p>' }
+  } catch { previewHtml.value = `<p style="color:red;">${t('common.previewFailed')}</p>` }
 }
 
 async function handleDelete(frag) {
@@ -274,7 +276,7 @@ async function handleDelete(frag) {
     await deleteFragment(frag.id)
     ElMessage.success(t('fragment.deleteSuccess'))
     loadFragments()
-  } catch (e) { console.error('删除片段失败', e) }
+  } catch (e) { ElMessage.error(t('common.loadFailed')) }
 }
 
 function handleOpenVersionHistory(frag) {
